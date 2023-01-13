@@ -14,6 +14,8 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+const MAX_LENGTH = 4000
+
 func main() {
 	var Token, ChannelId, host string
 	flag.StringVar(&Token, "t", "", "Bot Token")
@@ -60,7 +62,23 @@ func main() {
 	}
 
 	logrus.Info("Sending IOTD")
-	_, err = dg.ChannelMessageSend(ChannelId, fmt.Sprintf("Titre: %s\n Description: %s\n User: %s\n Url: %s", *response.Payload.Title, *response.Payload.Description, *response.Payload.User, *response.Payload.URL))
+	var message string
+	messageMap := map[string]string{
+		"Titre":       *response.Payload.Title,
+		"Description": *response.Payload.Description,
+		"User":        *response.Payload.User,
+		"Url":         *response.Payload.URL,
+	}
+
+	for k, v := range messageMap {
+		field := fmt.Sprintf("%s: %s\n", k, v)
+		if len(message)+len(field) > MAX_LENGTH {
+			break
+		}
+		message += field
+	}
+
+	_, err = dg.ChannelMessageSend(ChannelId, message)
 	if err != nil {
 		logrus.Error(err)
 	}
