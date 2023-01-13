@@ -73,7 +73,7 @@ func main() {
 	for k, v := range messageMap {
 		field := fmt.Sprintf("%s: %s\n", k, v)
 		if len(message)+len(field) > MAX_LENGTH {
-			break
+			continue
 		}
 		message += field
 	}
