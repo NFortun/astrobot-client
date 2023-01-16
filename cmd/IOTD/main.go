@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 
@@ -14,32 +13,42 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-const MAX_LENGTH = 4000
-
 func main() {
+	if err := run(); err != nil {
+		logrus.Error(err)
+		os.Exit(1)
+	}
+}
+func run() error {
 	var Token, ChannelId, host string
+	var maxLength int
 	flag.StringVar(&Token, "t", "", "Bot Token")
 	flag.StringVar(&ChannelId, "channel", "", "Channel id")
+	flag.IntVar(&maxLength, "max-length", 2000, "max length of body")
 	flag.Parse()
 
 	if Token == "" {
-		log.Fatal("missing token")
+		return fmt.Errorf("missing token")
 	}
 
 	if ChannelId == "" {
-		log.Fatal("missing ChannelId")
+		return fmt.Errorf("missing ChannelId")
 	}
 
 	if host = os.Getenv("HOST"); host == "" {
-		log.Fatal("missing host")
+		return fmt.Errorf("missing host")
+	}
+
+	if maxLength == 0 {
+		return fmt.Errorf("missing max length")
 	}
 
 	logrus.Info("Creating new bot")
+
 	// Create a new Discordgo session
 	dg, err := discordgo.New("Bot " + Token)
 	if err != nil {
-		logrus.Error(err)
-		return
+		return err
 	}
 
 	dg.Identify.Intents = discordgo.IntentsGuildMessages
@@ -47,7 +56,7 @@ func main() {
 	logrus.Info("Opening connection")
 	err = dg.Open()
 	if err != nil {
-		panic(fmt.Sprintf("error while opening connection: %s", err.Error()))
+		return fmt.Errorf("error while opening connection: %s", err.Error())
 	}
 	defer dg.Close()
 
@@ -57,8 +66,7 @@ func main() {
 		HTTPClient: http.DefaultClient,
 	})
 	if err != nil {
-		logrus.Error(err)
-		return
+		return err
 	}
 
 	logrus.Info("Sending IOTD")
@@ -72,7 +80,7 @@ func main() {
 
 	for k, v := range messageMap {
 		field := fmt.Sprintf("%s: %s\n", k, v)
-		if len(message)+len(field) > MAX_LENGTH {
+		if len(message)+len(field) > maxLength {
 			continue
 		}
 		message += field
@@ -80,7 +88,8 @@ func main() {
 
 	_, err = dg.ChannelMessageSend(ChannelId, message)
 	if err != nil {
-		logrus.Error(err)
+		return err
 	}
 
+	return nil
 }
